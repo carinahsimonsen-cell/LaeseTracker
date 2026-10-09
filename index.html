@@ -110,17 +110,6 @@ function selectContext(){if(!cohort(selectedCohort))selectedCohort=state.cohorts
 function context(){const c=cohort(selectedCohort);if(!c)return '<div class="panel"><h2>Velkommen til LæseTracker</h2><p>Opret din første klasse under fanen <strong>Klasser og skoleår</strong>.</p></div>';return `<div class="panel context"><div class="fields"><label>Vælg klasse<select id="cohortselect">${options(state.cohorts,selectedCohort,c=>(currentYear(c.id)?.name||c.name)+(c.archived?' (arkiveret)':''))}</select></label><label>Vælg skoleår<select id="yearselect"><option value="all" ${selectedYear==='all'?'selected':''}>Alle skoleår</option>${options(yearsOf(selectedCohort),selectedYear,y=>y.label+' · '+y.name)}</select></label></div><small>Skift mellem skoleår uden at miste tidligere registreringer.</small></div>`;}
 
 function displayBooks(){return booksInScope().filter(b=>b.status==='done'&&(selectedYear==='all'||yearOf(b.end)===schoolYear(selectedYear)?.label));}
-function displayTopData(){
- const ss=visibleStudents().filter(x=>!x.archived),result=[];
- const stats=ss.map(st=>{const arr=booksOf(st.id),done=countedBooks(arr),p=arr.filter(b=>['done','abandoned'].includes(b.status)).reduce((n,b)=>n+pages(b),0);return {st,books:done.length,pages:p};});
- const byBooks=[...stats].filter(x=>x.books>0).sort((a,b)=>b.books-a.books||a.st.name.localeCompare(b.st.name,'da'))[0];
- const byPages=[...stats].filter(x=>x.pages>0).sort((a,b)=>b.pages-a.pages||a.st.name.localeCompare(b.st.name,'da'))[0];
- const improvements=ss.map(st=>{const arr=sortedBooks(booksOf(st.id).filter(b=>pace(b)!==null));if(arr.length<2)return null;const prev=pace(arr.at(-2)),last=pace(arr.at(-1));return prev>0&&last>prev?{st,gain:(last-prev)/prev}:null;}).filter(Boolean).sort((a,b)=>b.gain-a.gain);
- if(byBooks)result.push({label:'Flest bøger',name:byBooks.st.name,value:byBooks.books+' '+(byBooks.books===1?'bog':'bøger')});
- if(byPages)result.push({label:'Flest sider',name:byPages.st.name,value:fmt(byPages.pages)+' sider'});
- if(improvements[0])result.push({label:'Største fremgang',name:improvements[0].st.name,value:'Bedre tempo end sidst'});
- return result.slice(0,3);
-}
 function bookKey(title){return String(title||'').trim().toLocaleLowerCase('da');}
 function coverFor(title){return (state.covers||[]).find(x=>x.key===bookKey(title))?.image||'';}
 function coverSafe(url){const u=String(url||'');return /^https:\/\//i.test(u)||/^data:image\/(?:png|jpeg|webp);base64,/i.test(u)?u:'';}
@@ -165,8 +154,8 @@ function printRecommendations(){
  const w=window.open('','_blank');if(!w){alert('Tillad pop op-vinduer for at åbne anbefalingslisten.');return;}w.document.open();w.document.write(html);w.document.close();
 }
 function openClassDisplay(){
- const c=cohort(selectedCohort);if(!c)return;const done=displayBooks(),arr=booksInScope(),sum=summary(arr),tops=displayTopData(),title=selectedClassName(c),unique=new Set(done.map(b=>String(b.title||'').trim().toLocaleLowerCase('da')).filter(Boolean)).size;
- $('classdisplay').innerHTML=`<div class="cd-wrap"><div class="cd-top"><div><div class="cd-kicker">Vores læseår</div><div class="cd-title">${esc(title)}</div><div class="cd-sub">Det her har vi skabt sammen – én bog ad gangen.</div></div><button type="button" class="cd-close" id="closeclassdisplay">Luk ×</button></div><div class="cd-stats"><div class="cd-stat"><span>Afsluttede bøger</span><strong>${sum.count}</strong></div><div class="cd-stat"><span>Læste sider</span><strong>${fmt(sum.pages)}</strong></div><div class="cd-stat"><span>Forskellige titler</span><strong>${unique}</strong></div></div><div class="cd-sectiontitle"><h2>📚 Vores bogreol</h2><p>${done.length?'Alle klassens afsluttede bøger':'Her vokser reolen gennem året'}</p></div><div class="bookshelf">${shelfHtml(done)}</div><div id="bookdetail" class="book-detail hidden"></div><div class="cd-sectiontitle"><h2>✨ Top lige nu</h2><p>Forskellige måder at rykke sig på</p></div>${tops.length?`<div class="cd-topcards">${tops.map(x=>`<div class="cd-award"><small>${esc(x.label)}</small><strong>${esc(x.name)}</strong><span>${esc(x.value)}</span></div>`).join('')}</div>`:'<div class="cd-empty">Der kommer fremhævelser her, når der er lidt mere læsedata.</div>'}<div class="cd-milestone">${classMilestone(sum.count,sum.pages)}</div></div>`;
+ const c=cohort(selectedCohort);if(!c)return;const done=displayBooks(),arr=booksInScope(),sum=summary(arr),title=selectedClassName(c),unique=new Set(done.map(b=>String(b.title||'').trim().toLocaleLowerCase('da')).filter(Boolean)).size;
+ $('classdisplay').innerHTML=`<div class="cd-wrap"><div class="cd-top"><div><div class="cd-kicker">Vores læseår</div><div class="cd-title">${esc(title)}</div><div class="cd-sub">Det her har vi skabt sammen – én bog ad gangen.</div></div><button type="button" class="cd-close" id="closeclassdisplay">Luk ×</button></div><div class="cd-stats"><div class="cd-stat"><span>Afsluttede bøger</span><strong>${sum.count}</strong></div><div class="cd-stat"><span>Læste sider</span><strong>${fmt(sum.pages)}</strong></div><div class="cd-stat"><span>Forskellige titler</span><strong>${unique}</strong></div></div><div class="cd-sectiontitle"><h2>📚 Vores bogreol</h2><p>${done.length?'Alle klassens afsluttede bøger':'Her vokser reolen gennem året'}</p></div><div class="bookshelf">${shelfHtml(done)}</div><div id="bookdetail" class="book-detail hidden"></div><div class="cd-milestone">${classMilestone(sum.count,sum.pages)}</div></div>`;
  $('classdisplay').classList.remove('hidden');document.body.style.overflow='hidden';
 }
 function closeClassDisplay(){$('classdisplay').classList.add('hidden');$('classdisplay').innerHTML='';document.body.style.overflow='';}
